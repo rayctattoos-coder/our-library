@@ -169,6 +169,8 @@ nav.tabs svg { width: 22px; height: 22px; }
 .toast { position: fixed; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-size: 14px; z-index: 60; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 90vw; text-align: center; }
 .toast.show { opacity: 1; }
 .login { max-width: 420px; margin: 12vh auto 0; padding: 0 20px; display: flex; flex-direction: column; gap: 18px; text-align: center; }
+.link-btn { background: none; border: none; color: var(--quiet); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; align-self: center; padding: 6px 12px; min-height: 36px; }
+#pwMsg:empty { display: none; }
 .or { display: flex; align-items: center; gap: 12px; margin: 14px 0; color: var(--quiet); font-size: 13px; }
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .login form { gap: 6px; }
@@ -223,7 +225,9 @@ footer a { color: var(--quiet); }
     <div class="quiet" id="pwIntro">So you can sign in without waiting for an email link. At least 8 characters.</div>
     <input type="text" autocomplete="username" id="pwUser" hidden>
     <label class="field">New password<input id="pwNew" type="password" autocomplete="new-password" minlength="8"></label>
-    <div class="row"><button class="btn primary" id="pwSave" type="submit">Save password</button><button class="btn ghost" id="pwLater" type="button">Not now</button><span class="quiet" id="pwMsg"></span></div>
+    <button class="btn primary" id="pwSave" type="submit" style="width:100%">Save password</button>
+    <div class="quiet" id="pwMsg" role="status" style="text-align:center"></div>
+    <button class="link-btn" id="pwLater" type="button">Not now</button>
   </form>
 
   <section id="view-library" hidden>
@@ -495,7 +499,7 @@ footer a { color: var(--quiet); }
     if (q) list = list.filter(b => [b.title, ...(b.authors || []), ...(b.tags || [])].join(" ").toLowerCase().includes(q));
     const el = $("libBooks"); el.className = "";
     if (!loaded) { el.innerHTML = ""; return; }
-    if (!lib.length) { el.innerHTML = `<div class="empty"><p>Your shelves are waiting.</p><span>Add the first book you love.</span><button class="btn primary" data-addnew>Add a book</button></div>`; return; }
+    if (!lib.length) { $("arrangeHint").textContent = ""; el.innerHTML = `<div class="empty"><p>Your shelves are waiting.</p><span>Add the first book you love.</span><button class="btn primary" data-addnew>Add a book</button></div>`; return; }
     if (!list.length) { el.innerHTML = `<div class="empty"><span>No books match that. Try another word.</span></div>`; return; }
     const groups = SHELVES.map(([k, label]) => [k, label, sortedItems(list.filter(b => b.status === k))]).filter(([k, , items]) => items.length || (k === "reading" && !q));
     if (mode === "list") {
