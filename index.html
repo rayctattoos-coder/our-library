@@ -407,10 +407,20 @@ footer a { color: var(--quiet); }
   const flatThick = (b) => Math.round(Math.max(13, Math.min(26, (b.page_count || 320) / 16)));
   const thick = (b) => Math.round(Math.max(14, Math.min(32, (b.page_count || 320) / 14)));
   const nameOf = (b) => !b.added_by ? "" : b.added_by === me?.id ? "you" : (b.added_by_name || "the other one of us");
+  function coverSrc(url, size) {
+    if (!url) return null;
+    if (url.includes("covers.openlibrary.org")) {
+      url = url.replace(/\?.*$/, "");
+      if (size === "S") url = url.replace(/-L\.jpg$/, "-M.jpg");
+      return url + "?default=false";
+    }
+    return url;
+  }
+  window.__coverCheck = (img) => { if (img.naturalWidth < 20 || img.naturalHeight < 20) img.remove(); };
   function coverHtml(b, size) {
-    const url = b.cover_url ? (size === "S" ? b.cover_url.replace(/-L\.jpg$/, "-M.jpg") : b.cover_url) : null;
+    const url = coverSrc(b.cover_url, size);
     const gen = `<div class="gen" style="background:${colorOf(b)}"><b>${esc(b.title)}</b><span>${esc(firstAuthor(b))}</span></div>`;
-    return `<div class="cover">${gen}${url ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div>`;
+    return `<div class="cover">${gen}${url ? `<img src="${esc(url)}" alt="" loading="lazy" onload="__coverCheck(this)" onerror="this.remove()">` : ""}</div>`;
   }
   function greeting() { const h = new Date().getHours(); return h < 5 ? "Late-night reading" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"; }
 
@@ -480,8 +490,11 @@ footer a { color: var(--quiet); }
   $("signOutDenied").addEventListener("click", signOut);
 
   // ---------- data ----------
+  let pendingWrites = 0;
   async function loadBooks() {
+    if (pendingWrites) return;
     const { data, error } = await sb.from("books").select("*").order("added_on", { ascending: false });
+    if (pendingWrites) return;
     if (error) { notice("Couldn't load the library. Pull down to refresh, or check your connection."); return; }
     books = data; loaded = true; notice(""); render();
   }
@@ -500,10 +513,11 @@ footer a { color: var(--quiet); }
     const b = books.find(x => x.id === id); if (b) Object.assign(b, patch);
     if (!quiet) render();
     const prev = queues.get(id) || Promise.resolve();
+    pendingWrites++;
     const next = prev.then(async () => {
       const { error } = await sb.from("books").update(patch).eq("id", id);
       if (error) toast("Couldn't save that change. Check your connection.");
-    });
+    }).finally(() => { pendingWrites--; });
     queues.set(id, next.catch(() => {}));
     return next;
   }
@@ -817,7 +831,7 @@ footer a { color: var(--quiet); }
       }
       if (!$("coverPicker") || detailId !== id) return;
       box.innerHTML = `<div class="row spread"><b>Covers from other editions</b><button class="btn ghost" data-closepicker>Done</button></div>` +
-        (items.length ? `<div class="quiet">Tap the one that looks like your copy.</div><div class="cover-grid">${items.map(it => `<button class="cover-opt" data-setcover="${it.cid}" data-isbn="${esc(it.isbn)}" data-pages="${it.pages || ""}" aria-label="${esc(it.label || "Edition cover")}"><div class="cover"><img src="https://covers.openlibrary.org/b/id/${it.cid}-M.jpg" alt="" loading="lazy"></div><span>${esc(it.label)}</span></button>`).join("")}</div>`
+        (items.length ? `<div class="quiet">Tap the one that looks like your copy.</div><div class="cover-grid">${items.map(it => `<button class="cover-opt" data-setcover="${it.cid}" data-isbn="${esc(it.isbn)}" data-pages="${it.pages || ""}" aria-label="${esc(it.label || "Edition cover")}"><div class="cover"><img src="https://covers.openlibrary.org/b/id/${it.cid}-M.jpg?default=false" alt="" loading="lazy" onload="if(this.naturalWidth<20)this.closest('button').remove()" onerror="this.closest('button').remove()"></div><span>${esc(it.label)}</span></button>`).join("")}</div>`
           : `<div class="quiet">Open Library doesn't have other covers for this book. Use "Use a photo of my copy" instead.</div>`);
     } catch (e) { box.innerHTML = `<div class="quiet">Couldn't load covers right now. Try again in a moment.</div>`; }
   }
@@ -1188,7 +1202,11 @@ footer a { color: var(--quiet); }
       const patch = { cover_url: `https://covers.openlibrary.org/b/id/${d.setcover}-L.jpg` };
       if (d.isbn && !b.isbn) patch.isbn = d.isbn;
       if (d.pages && !b.page_count) patch.page_count = +d.pages;
-      updateBook(detailId, patch); toast("Cover updated");
+      const turned = b.list === "library" && b.orientation !== "front";
+      if (turned) patch.orientation = "front";
+      updateBook(detailId, patch);
+      $("detailSheet").scrollTo({ top: 0, behavior: "smooth" });
+      toast(turned ? "Cover updated and turned cover-out on the shelf" : "Cover updated");
     }
   }, true);
   const pageTimers = {};
@@ -1211,7 +1229,13 @@ footer a { color: var(--quiet); }
       if (!id) return;
       const file = await openCropper(picked);
       if (!file) return;
-      try { toast("Uploading cover…"); const url = await uploadCover(file); await updateBook(id, { cover_url: url }); render(); toast("Cover updated"); } catch (err) { toast("That photo didn't upload. Try again."); }
+      try {
+        toast("Uploading cover…"); const url = await uploadCover(file);
+        const b = books.find(x => x.id === id), patch = { cover_url: url };
+        const turned = b && b.list === "library" && b.orientation !== "front"; if (turned) patch.orientation = "front";
+        await updateBook(id, patch); render(); $("detailSheet").scrollTo({ top: 0, behavior: "smooth" });
+        toast(turned ? "Cover updated and turned cover-out on the shelf" : "Cover updated");
+      } catch (err) { toast("That photo didn't upload. Try again."); }
     }
     if (el.id === "fCover" && el.files?.[0]) {
       const file = await openCropper(el.files[0]); el.value = "";
