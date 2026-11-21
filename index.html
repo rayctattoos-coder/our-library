@@ -178,6 +178,14 @@ body { padding-bottom: calc(210px + env(safe-area-inset-bottom)); }
 .result .cover { width: 44px; }
 .picked { display: flex; gap: 14px; align-items: center; background: var(--surface); border-radius: 12px; padding: 12px; box-shadow: var(--shadow); }
 .picked .cover { width: 60px; }
+.cropper { position: fixed; inset: 0; z-index: 75; background: #111; display: flex; flex-direction: column; touch-action: none; }
+.cropper .scan-top span { text-align: center; font-size: 14px; flex: 1; }
+.cropper .btn:not(.primary) { background: #2A2420; color: #fff; border-color: #4A3F38; }
+.crop-stage { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.crop-stage canvas { touch-action: none; max-width: 100%; max-height: 100%; }
+.crop-foot { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); color: #ddd; gap: 12px; }
+.crop-preview { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.crop-preview canvas { width: 40px; height: 60px; border-radius: 2px; background: #333; }
 .cover-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 14px; }
 .cover-opt { background: none; border: none; padding: 0; display: flex; flex-direction: column; gap: 6px; text-align: left; font-size: 11px; color: var(--quiet); line-height: 1.3; }
 .cover-opt:focus-visible .cover, .cover-opt:hover .cover { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -325,7 +333,7 @@ footer a { color: var(--quiet); }
         </div>
         <label class="field">Year<input id="fYear" type="number" inputmode="numeric"></label>
         <label class="field">Description<textarea id="fDesc"></textarea></label>
-        <label class="field">Cover photo (optional)<input id="fCover" type="file" accept="image/*"></label>
+        <label class="field">Photo of your copy's cover (optional)<input id="fCover" type="file" accept="image/*"></label>
       </div>
     </details>
     <label class="field" id="statusField">Which shelf?<select id="fStatus">
@@ -348,6 +356,12 @@ footer a { color: var(--quiet); }
   <div id="scanView"></div>
   <div class="scan-frame" aria-hidden="true"></div>
   <div class="scan-msg" id="scanMsg" role="status"></div>
+</div>
+
+<div class="cropper" id="cropper" hidden role="dialog" aria-modal="true" aria-label="Crop the cover">
+  <div class="scan-top"><button type="button" class="btn" id="cropCancel">Cancel</button><span>Drag the corners onto the cover's edges</span><button type="button" class="btn primary" id="cropDone">Use cover</button></div>
+  <div class="crop-stage" id="cropStage"><canvas id="cropCanvas"></canvas></div>
+  <div class="crop-foot"><button type="button" class="btn" id="cropReset">Reset corners</button><div class="crop-preview"><canvas id="cropPreview" width="80" height="120"></canvas><span>Preview</span></div></div>
 </div>
 
 <div class="toast" id="toast" role="status"></div>
@@ -882,6 +896,139 @@ footer a { color: var(--quiet); }
     $("picked").innerHTML = `${coverHtml(p)}<div style="flex:1;min-width:0"><div class="title-sm" style="font-size:16px">${esc(p.title)}</div><div class="quiet">${esc((p.authors || []).join(", "))}${p.year ? ` · ${p.year}` : ""}${p.page_count ? ` · ${p.page_count} pages` : ""}</div></div><button type="button" class="btn ghost" data-unpick>Change</button>`;
   }
 
+  // ---------- cover cropper (4 corners + perspective straightening) ----------
+  let crop = null;
+  function openCropper(file) {
+    return new Promise(async (resolve) => {
+      let bmp;
+      try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); }
+      catch (e) { try { bmp = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = URL.createObjectURL(file); }); } catch (e2) { toast("Couldn't open that photo. Try a JPEG or PNG."); resolve(null); return; } }
+      // working copy, max 2000px on the long side
+      const scale = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+      const src = document.createElement("canvas"); src.width = Math.round(bmp.width * scale); src.height = Math.round(bmp.height * scale);
+      src.getContext("2d").drawImage(bmp, 0, 0, src.width, src.height);
+      const W = src.width, H = src.height;
+      crop = { src, data: src.getContext("2d").getImageData(0, 0, W, H), resolve, drag: -1,
+        pts: guessCorners(src) || [[W * .12, H * .1], [W * .88, H * .1], [W * .88, H * .9], [W * .12, H * .9]] };
+      $("cropper").hidden = false;
+      requestAnimationFrame(drawCrop);
+    });
+  }
+  // Automatic guess: treat colors that differ from the photo's border as "the book", then take its four extreme corners
+  function guessCorners(src) {
+    try {
+      const k = 200 / Math.max(src.width, src.height), w = Math.round(src.width * k), h = Math.round(src.height * k);
+      const c = document.createElement("canvas"); c.width = w; c.height = h; const g = c.getContext("2d"); g.drawImage(src, 0, 0, w, h);
+      const d = g.getImageData(0, 0, w, h).data;
+      const border = [];
+      for (let x = 0; x < w; x += 2) { border.push((0 * w + x) * 4, ((h - 1) * w + x) * 4, (2 * w + x) * 4, ((h - 3) * w + x) * 4); }
+      for (let y = 0; y < h; y += 2) { border.push((y * w) * 4, (y * w + w - 1) * 4, (y * w + 2) * 4, (y * w + w - 3) * 4); }
+      const med = [0, 1, 2].map(ch => { const v = border.map(i => d[i + ch]).sort((a, b) => a - b); return v[v.length >> 1]; });
+      const dist = (i) => Math.hypot(d[i] - med[0], d[i + 1] - med[1], d[i + 2] - med[2]);
+      const bd = border.map(dist).sort((a, b) => a - b), thr = Math.max(45, bd[Math.floor(bd.length * .9)] * 1.6);
+      const mask = new Uint8Array(w * h);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (dist((y * w + x) * 4) > thr) mask[y * w + x] = 1;
+      // keep pixels with enough masked neighbours (removes grain specks)
+      let n = 0, tl = [0, 0, 1e9], tr = [0, 0, -1e9], br = [0, 0, -1e9], bl = [0, 0, 1e9];
+      for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) {
+        if (!mask[y * w + x]) continue;
+        let nb = 0; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) nb += mask[(y + dy) * w + x + dx];
+        if (nb < 20) continue; n++;
+        if (x + y < tl[2]) tl = [x, y, x + y]; if (x - y > tr[2]) tr = [x, y, x - y];
+        if (x + y > br[2]) br = [x, y, x + y]; if (x - y < bl[2]) bl = [x, y, x - y];
+      }
+      if (n < w * h * .12 || n > w * h * .97) return null;
+      const s = 1 / k, q = [tl, tr, br, bl].map(([x, y]) => [x * s, y * s]);
+      const area = Math.abs((q[0][0] * q[1][1] - q[1][0] * q[0][1]) + (q[1][0] * q[2][1] - q[2][0] * q[1][1]) + (q[2][0] * q[3][1] - q[3][0] * q[2][1]) + (q[3][0] * q[0][1] - q[0][0] * q[3][1])) / 2;
+      if (area < src.width * src.height * .1) return null;
+      return q;
+    } catch (e) { return null; }
+  }
+  function cropView() {
+    const cv = $("cropCanvas"), stage = $("cropStage");
+    const maxW = stage.clientWidth - 24, maxH = stage.clientHeight - 24;
+    const f = Math.min(maxW / crop.src.width, maxH / crop.src.height);
+    return { cv, f, w: Math.round(crop.src.width * f), h: Math.round(crop.src.height * f) };
+  }
+  function drawCrop() {
+    if (!crop) return;
+    const { cv, f, w, h } = cropView(), dpr = window.devicePixelRatio || 1;
+    cv.width = w * dpr; cv.height = h * dpr; cv.style.width = w + "px"; cv.style.height = h + "px";
+    const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.drawImage(crop.src, 0, 0, w, h);
+    const P = crop.pts.map(([x, y]) => [x * f, y * f]);
+    g.fillStyle = "rgba(0,0,0,.55)"; g.beginPath(); g.rect(0, 0, w, h);
+    g.moveTo(P[0][0], P[0][1]); for (let i = 3; i >= 0; i--) g.lineTo(P[i][0], P[i][1]); g.closePath(); g.fill("evenodd");
+    g.strokeStyle = "#F3E3C8"; g.lineWidth = 2; g.beginPath(); P.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.stroke();
+    P.forEach(([x, y], i) => { g.beginPath(); g.arc(x, y, i === crop.drag ? 16 : 12, 0, Math.PI * 2); g.fillStyle = "rgba(243,227,200,.35)"; g.fill(); g.lineWidth = 3; g.strokeStyle = "#fff"; g.stroke(); });
+    if (crop.drag >= 0) { // magnifier so the corner can be placed exactly
+      const [sx, sy] = crop.pts[crop.drag], R = 46, z = 3;
+      const mx = P[crop.drag][0] < w / 2 ? w - R - 8 : R + 8, my = R + 8;
+      g.save(); g.beginPath(); g.arc(mx, my, R, 0, Math.PI * 2); g.clip();
+      const half = R / (z * f); g.drawImage(crop.src, sx - half, sy - half, 2 * half, 2 * half, mx - R, my - R, 2 * R, 2 * R);
+      g.restore(); g.beginPath(); g.arc(mx, my, R, 0, Math.PI * 2); g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke();
+      g.beginPath(); g.moveTo(mx - 8, my); g.lineTo(mx + 8, my); g.moveTo(mx, my - 8); g.lineTo(mx, my + 8); g.strokeStyle = "#F3E3C8"; g.stroke();
+    }
+    drawPreview();
+  }
+  // homography: maps unit square (u,v) to the quad
+  function quadMap(p) {
+    const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = p;
+    const dx1 = x1 - x2, dx2 = x3 - x2, dx3 = x0 - x1 + x2 - x3, dy1 = y1 - y2, dy2 = y3 - y2, dy3 = y0 - y1 + y2 - y3;
+    const den = dx1 * dy2 - dx2 * dy1 || 1e-9;
+    const g = (dx3 * dy2 - dx2 * dy3) / den, h = (dx1 * dy3 - dx3 * dy1) / den;
+    const a = x1 - x0 + g * x1, b = x3 - x0 + h * x3, c = x0, d = y1 - y0 + g * y1, e = y3 - y0 + h * y3, f = y0;
+    return (u, v) => { const z = g * u + h * v + 1; return [(a * u + b * v + c) / z, (d * u + e * v + f) / z]; };
+  }
+  function warp(outW, outH) {
+    const map = quadMap(crop.pts), out = new ImageData(outW, outH), S = crop.data.data, SW = crop.src.width, SH = crop.src.height, O = out.data;
+    for (let y = 0; y < outH; y++) for (let x = 0; x < outW; x++) {
+      let [sx, sy] = map((x + .5) / outW, (y + .5) / outH);
+      sx = Math.min(SW - 1.001, Math.max(0, sx - .5)); sy = Math.min(SH - 1.001, Math.max(0, sy - .5));
+      const ix = sx | 0, iy = sy | 0, fx = sx - ix, fy = sy - iy, i00 = (iy * SW + ix) * 4, i10 = i00 + 4, i01 = i00 + SW * 4, i11 = i01 + 4, o = (y * outW + x) * 4;
+      for (let k = 0; k < 3; k++) O[o + k] = (S[i00 + k] * (1 - fx) + S[i10 + k] * fx) * (1 - fy) + (S[i01 + k] * (1 - fx) + S[i11 + k] * fx) * fy;
+      O[o + 3] = 255;
+    }
+    return out;
+  }
+  function outSize() {
+    const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]), p = crop.pts;
+    const wq = (d(p[0], p[1]) + d(p[3], p[2])) / 2, hq = (d(p[0], p[3]) + d(p[1], p[2])) / 2;
+    const ratio = Math.max(.4, Math.min(1.2, wq / hq)), W = 600;
+    return [W, Math.round(W / ratio)];
+  }
+  let prevT = 0;
+  function drawPreview() {
+    const now = performance.now(); if (crop.drag >= 0 && now - prevT < 120) return; prevT = now;
+    const [W, H] = outSize(), pw = 80, ph = Math.round(80 * H / W), img = warp(pw, ph);
+    const pc = $("cropPreview"); pc.width = pw; pc.height = ph; pc.style.height = Math.round(40 * ph / pw) + "px";
+    pc.getContext("2d").putImageData(img, 0, 0);
+  }
+  function cropPointer(e) {
+    if (!crop) return;
+    const { cv, f } = cropView(), r = cv.getBoundingClientRect();
+    const x = (e.clientX - r.left) / f, y = (e.clientY - r.top) / f;
+    if (e.type === "pointerdown") {
+      let best = -1, bd = 1e9; crop.pts.forEach(([px, py], i) => { const dd = Math.hypot(px - x, py - y) * f; if (dd < bd) { bd = dd; best = i; } });
+      if (bd < 48) { crop.drag = best; cv.setPointerCapture(e.pointerId); drawCrop(); }
+    } else if (e.type === "pointermove" && crop.drag >= 0) {
+      crop.pts[crop.drag] = [Math.max(0, Math.min(crop.src.width, x)), Math.max(0, Math.min(crop.src.height, y))]; drawCrop();
+    } else if ((e.type === "pointerup" || e.type === "pointercancel") && crop.drag >= 0) { crop.drag = -1; prevT = 0; drawCrop(); }
+  }
+  ["pointerdown", "pointermove", "pointerup", "pointercancel"].forEach(t => $("cropCanvas").addEventListener(t, cropPointer));
+  function finishCrop(ok) {
+    if (!crop) return;
+    const c = crop; crop = null; $("cropper").hidden = true;
+    if (!ok) { c.resolve(null); return; }
+    crop = c; const [W, H] = outSize(); const img = warp(W, H); crop = null;
+    const out = document.createElement("canvas"); out.width = W; out.height = H; out.getContext("2d").putImageData(img, 0, 0);
+    out.toBlob(b => c.resolve(b ? new File([b], "cover.jpg", { type: "image/jpeg" }) : null), "image/jpeg", 0.88);
+  }
+  $("cropCancel").addEventListener("click", () => finishCrop(false));
+  $("cropDone").addEventListener("click", () => finishCrop(true));
+  $("cropReset").addEventListener("click", () => { if (!crop) return; const W = crop.src.width, H = crop.src.height; crop.pts = guessCorners(crop.src) || [[W * .12, H * .1], [W * .88, H * .1], [W * .88, H * .9], [W * .12, H * .9]]; prevT = 0; drawCrop(); });
+  window.addEventListener("resize", () => { if (crop) drawCrop(); });
+
   // ---------- barcode scanner ----------
   let scanner = null, scanLib = null, scanDone = false;
   function loadScanLib() {
@@ -1050,8 +1197,16 @@ footer a { color: var(--quiet); }
       if (name === "status") { patch.shelf_pos = null; if (v === "reading" && !b.started_on) patch.started_on = today(); if (v === "read" && !b.finished_on) patch.finished_on = today(); }
       el.blur(); updateBook(detailId, patch);
     }
-    if (el.dataset?.coverfor && el.files?.[0]) { const id = el.dataset.coverfor; try { toast("Uploading cover…"); const url = await uploadCover(el.files[0]); updateBook(id, { cover_url: url }); toast("Cover updated"); } catch (err) { toast("That photo didn't upload. Try a smaller image."); } }
-    if (el.id === "fCover") pendingCover = el.files?.[0] || null;
+    if (el.dataset?.coverfor && el.files?.[0]) {
+      const id = el.dataset.coverfor, file = await openCropper(el.files[0]); el.value = "";
+      if (!file) return;
+      try { toast("Uploading cover…"); const url = await uploadCover(file); updateBook(id, { cover_url: url }); toast("Cover updated"); } catch (err) { toast("That photo didn't upload. Try again."); }
+    }
+    if (el.id === "fCover" && el.files?.[0]) {
+      const file = await openCropper(el.files[0]); el.value = "";
+      pendingCover = file || null;
+      if (file) { if (picked) picked.cover_url = URL.createObjectURL(file); showPicked(); toast("Cover photo ready"); }
+    }
   });
   $("addBtn").addEventListener("click", () => openAdd());
   $("destLib").addEventListener("click", () => setDest("library"));
