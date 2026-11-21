@@ -88,10 +88,11 @@ body { padding-bottom: calc(210px + env(safe-area-inset-bottom)); }
 .cover .gen span { font-size: 10px; opacity: .85; line-height: 1.3; }
 
 /* Bookcase */
-.bookcase { --bw: 70px; --bh: 105px; position: relative; border-radius: 10px; padding: 18px 10px 0; overflow: hidden; user-select: none; -webkit-user-select: none;
+.bookcase { --bw: 70px; --bh: 112px; position: relative; border-radius: 10px; padding: 18px 10px 0; overflow: hidden; user-select: none; -webkit-user-select: none;
   background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 1px, transparent 1px 7px, rgba(255,255,255,.03) 7px 8px, transparent 8px 19px), linear-gradient(180deg, #4A2E1C, #3B2416);
   box-shadow: inset 0 0 0 6px #5C3A22, inset 0 0 24px rgba(0,0,0,.45), var(--shadow); }
-@media (min-width: 500px) { .bookcase { --bw: 92px; --bh: 138px; } }
+@media (min-width: 500px) { .bookcase { --bw: 88px; --bh: 141px; } }
+.bookcase .book .cover { aspect-ratio: auto; height: var(--bh); }
 .plaque-row { display: flex; justify-content: center; padding: 2px 0 12px; }
 .plaque { font-family: var(--display); font-size: 13px; font-weight: 600; color: #3B2416; padding: 3px 14px; border-radius: 3px; background: linear-gradient(180deg, #E8CB8A, #C9A45C 55%, #A9843F); box-shadow: 0 1px 2px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.5); }
 .plaque span { opacity: .7; font-weight: 500; }
@@ -403,7 +404,7 @@ footer a { color: var(--quiet); }
   const normIsbn = (s) => String(s || "").replace(/[^0-9Xx]/g, "").toUpperCase();
   const isIsbn = (s) => { const n = normIsbn(s); return /^\d{13}$/.test(n) || /^\d{9}[\dX]$/.test(n); };
   const flatThick = (b) => Math.round(Math.max(13, Math.min(26, (b.page_count || 320) / 16)));
-  const thick = (b) => Math.round(Math.max(18, Math.min(40, (b.page_count || 320) / 11)));
+  const thick = (b) => Math.round(Math.max(14, Math.min(32, (b.page_count || 320) / 14)));
   const nameOf = (b) => !b.added_by ? "" : b.added_by === me?.id ? "you" : (b.added_by_name || "the other one of us");
   function coverHtml(b, size) {
     const url = b.cover_url ? (size === "S" ? b.cover_url.replace(/-L\.jpg$/, "-M.jpg") : b.cover_url) : null;
@@ -565,7 +566,7 @@ footer a { color: var(--quiet); }
     el.className = "bookcase";
     el.dataset.arrange = canArrange ? "1" : "";
     const w = $("view-library").clientWidth || 360;
-    const bw = w >= 500 ? 92 : 70, bh = Math.round(bw * 1.5);
+    const bw = w >= 500 ? 88 : 70, bh = Math.round(bw * 1.6);
     const inner = w - 20 - 12;
     el.innerHTML = groups.map(([k, label, items]) => {
       const plaque = `<div class="plaque-row"><span class="plaque">${label} <span>${items.length}</span></span></div>`;
