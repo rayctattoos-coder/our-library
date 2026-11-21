@@ -182,12 +182,17 @@ footer a { color: var(--quiet); }
 <section class="login" id="loginView" hidden>
   <div class="shelf-art" aria-hidden="true"><i style="height:48px;background:#8C5A43"></i><i style="height:58px;background:#6E7A5E"></i><i style="height:52px;background:#5D6B7A"></i><i style="height:62px;background:#9A7348"></i><i style="height:44px;background:#7A5A6E"></i></div>
   <h1>Our Library</h1>
-  <p class="quiet" style="margin:0;font-size:16px">Sign in with your email. We'll send you a link, no password needed.</p>
+  <p class="quiet" style="margin:0;font-size:16px">Sign in to our shared shelves.</p>
   <form id="loginForm" class="field" style="text-align:left" novalidate>
     <label for="loginEmail">Email</label>
-    <input id="loginEmail" type="email" autocomplete="email" inputmode="email" required>
+    <input id="loginEmail" type="email" autocomplete="username" inputmode="email" required>
     <div style="height:8px"></div>
-    <button class="btn primary" id="loginBtn" type="submit">Send me a sign-in link</button>
+    <label for="loginPass">Password</label>
+    <input id="loginPass" type="password" autocomplete="current-password">
+    <div style="height:12px"></div>
+    <button class="btn primary" id="loginBtn" type="submit">Sign in</button>
+    <div style="height:4px"></div>
+    <button class="btn ghost" id="linkBtn" type="button">First time, or forgot your password? Email me a sign-in link</button>
   </form>
   <div class="notice" id="loginMsg" role="status"></div>
 </section>
@@ -207,6 +212,14 @@ footer a { color: var(--quiet); }
 
 <main class="wrap">
   <div class="notice" id="notice" role="status"></div>
+
+  <form class="reading-box" id="pwCard" hidden novalidate>
+    <h2 id="pwTitle">Set a password</h2>
+    <div class="quiet" id="pwIntro">So you can sign in without waiting for an email link. At least 8 characters.</div>
+    <input type="text" autocomplete="username" id="pwUser" hidden>
+    <label class="field">New password<input id="pwNew" type="password" autocomplete="new-password" minlength="8"></label>
+    <div class="row"><button class="btn primary" id="pwSave" type="submit">Save password</button><button class="btn ghost" id="pwLater" type="button">Not now</button><span class="quiet" id="pwMsg"></span></div>
+  </form>
 
   <section id="view-library" hidden>
     <div class="quiet" id="libGreeting" style="font-size:15px"></div>
@@ -245,7 +258,7 @@ footer a { color: var(--quiet); }
     <div id="wishBooks" style="display:flex;flex-direction:column;gap:16px"></div>
   </section>
 
-  <footer class="quiet">Book details and covers from <a href="https://openlibrary.org" rel="noopener">Open Library</a> · <button class="btn ghost" id="signOut" style="font-size:14px;color:var(--quiet)">Sign out</button></footer>
+  <footer class="quiet">Book details and covers from <a href="https://openlibrary.org" rel="noopener">Open Library</a> · <span><button class="btn ghost" id="changePw" style="font-size:14px;color:var(--quiet)">Change password</button> · <button class="btn ghost" id="signOut" style="font-size:14px;color:var(--quiet)">Sign out</button></span></footer>
 </main>
 </div>
 
@@ -354,18 +367,50 @@ footer a { color: var(--quiet); }
     if (!mem) { $("deniedText").textContent = `${email} isn't on the list for this library yet. Ask Honglei to add it.`; $("deniedView").hidden = false; return; }
     myName = NAMES[email] || "Jasmine";
     $("appView").hidden = false;
+    let later = false; try { later = sessionStorage.getItem("pwLater") === "1"; } catch (e) {}
+    showPwCard(!me.user_metadata?.password_set && !later, false);
     await loadBooks();
     subscribe();
   }
+  const validEmail = (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
   $("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const email = $("loginEmail").value.trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { $("loginMsg").textContent = "Enter your email address."; return; }
-    $("loginBtn").disabled = true; $("loginMsg").textContent = "Sending…";
-    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+    const email = $("loginEmail").value.trim().toLowerCase(), password = $("loginPass").value;
+    if (!validEmail(email)) { $("loginMsg").textContent = "Enter your email address."; return; }
+    if (!password) { $("loginMsg").textContent = "Enter your password. First time here? Use the email link below, then set a password."; return; }
+    $("loginBtn").disabled = true; $("loginMsg").textContent = "Signing in…";
+    const { error } = await sb.auth.signInWithPassword({ email, password });
     $("loginBtn").disabled = false;
-    $("loginMsg").textContent = error ? (error.status === 429 ? "Too many links sent. Wait a few minutes and try again." : "Couldn't send the link. Check the address and try again.") : `Check ${email} for your sign-in link. Open it on this device.`;
+    if (error) $("loginMsg").textContent = error.status === 429 ? "Too many tries. Wait a minute and try again." : "That email and password don't match. If you haven't set a password yet, use the email link below.";
+    else $("loginMsg").textContent = "";
   });
+  $("linkBtn").addEventListener("click", async () => {
+    const email = $("loginEmail").value.trim().toLowerCase();
+    if (!validEmail(email)) { $("loginMsg").textContent = "Enter your email address first."; $("loginEmail").focus(); return; }
+    $("linkBtn").disabled = true; $("loginMsg").textContent = "Sending…";
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+    $("linkBtn").disabled = false;
+    $("loginMsg").textContent = error ? (error.status === 429 ? "Too many emails sent this hour. Try again in about an hour, or sign in with your password." : "Couldn't send the link. Check the address and try again.") : `Check ${email} for your sign-in link and open it on this device. Then set a password so you won't need links again.`;
+  });
+  function showPwCard(show, change) {
+    $("pwCard").hidden = !show; $("pwMsg").textContent = ""; $("pwNew").value = "";
+    $("pwUser").value = me?.email || "";
+    $("pwTitle").textContent = change ? "Change your password" : "Set a password";
+    if (show && change) $("pwNew").focus();
+  }
+  $("pwCard").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const pw = $("pwNew").value;
+    if (pw.length < 8) { $("pwMsg").textContent = "Use at least 8 characters."; return; }
+    $("pwSave").disabled = true; $("pwMsg").textContent = "Saving…";
+    const { data, error } = await sb.auth.updateUser({ password: pw, data: { password_set: true } });
+    $("pwSave").disabled = false;
+    if (error) { $("pwMsg").textContent = /same/i.test(error.message || "") ? "That's your current password. Pick a new one." : /weak|short|pwned/i.test(error.message || "") ? "Pick a stronger password." : "Couldn't save it. Try again."; return; }
+    if (data?.user) me = data.user;
+    showPwCard(false); toast("Password saved. Use it next time you sign in.");
+  });
+  $("pwLater").addEventListener("click", () => { try { sessionStorage.setItem("pwLater", "1"); } catch (e) {} showPwCard(false); });
+  $("changePw").addEventListener("click", () => { showPwCard(true, true); window.scrollTo(0, 0); });
   async function signOut() { await sb.auth.signOut(); session = null; books = []; route(); }
   $("signOut").addEventListener("click", signOut);
   $("signOutDenied").addEventListener("click", signOut);
