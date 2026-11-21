@@ -5,7 +5,7 @@ A shared book library for two, with Open Library search and covers, a wooden boo
 - **Frontend:** a single `index.html` (no build step), using supabase-js from a CDN.
 - **Database and sign-in:** Supabase project `our-library` (ref `chlbxeuffwgwtzondpam`). Tables are `books` and `members`, an email allowlist; row-level security only lets members read and write. Cover photos go to the public `covers` storage bucket.
 - **Book data:** [Open Library](https://openlibrary.org) search, ISBN lookup and cover images.
-- **Hosting:** Netlify project `our-library-shelf` (https://our-library-shelf.netlify.app), which publishes the repo root.
+- **Hosting:** GitHub Pages from `main`, root folder: https://rayctattoos-coder.github.io/our-library/ (the earlier Netlify site `our-library-shelf` is no longer updated).
 
 ## Add someone to the library
 
@@ -18,5 +18,5 @@ insert into public.members (email) values ('their@email.com');
 ## Supabase Auth settings
 
 Under Authentication → URL Configuration:
-- Site URL: `https://our-library-shelf.netlify.app`
-- Redirect URLs: `https://our-library-shelf.netlify.app/**`
+- Site URL: `https://rayctattoos-coder.github.io/our-library/`
+- Redirect URLs: `https://rayctattoos-coder.github.io/our-library/**`
