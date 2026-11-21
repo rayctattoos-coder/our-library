@@ -751,7 +751,9 @@ footer a { color: var(--quiet); }
   function renderDetail() {
     const b = books.find(x => x.id === detailId), s = $("detailSheet");
     if (!b) { closeDetail(); return; }
-    if (s.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && s.dataset.id === b.id) return;
+    const ae = document.activeElement;
+    const typing = s.contains(ae) && (ae.tagName === "TEXTAREA" || (ae.tagName === "INPUT" && !["file", "button", "checkbox", "radio"].includes(ae.type)));
+    if (typing && s.dataset.id === b.id) return;
     s.dataset.id = b.id;
     const isLib = b.list === "library";
     s.innerHTML = `
@@ -1198,9 +1200,9 @@ footer a { color: var(--quiet); }
       el.blur(); updateBook(detailId, patch);
     }
     if (el.dataset?.coverfor && el.files?.[0]) {
-      const id = el.dataset.coverfor, file = await openCropper(el.files[0]); el.value = "";
+      const id = el.dataset.coverfor; el.blur(); const file = await openCropper(el.files[0]); el.value = "";
       if (!file) return;
-      try { toast("Uploading cover…"); const url = await uploadCover(file); updateBook(id, { cover_url: url }); toast("Cover updated"); } catch (err) { toast("That photo didn't upload. Try again."); }
+      try { toast("Uploading cover…"); const url = await uploadCover(file); await updateBook(id, { cover_url: url }); render(); toast("Cover updated"); } catch (err) { toast("That photo didn't upload. Try again."); }
     }
     if (el.id === "fCover" && el.files?.[0]) {
       const file = await openCropper(el.files[0]); el.value = "";
