@@ -368,6 +368,7 @@ footer a { color: var(--quiet); }
   <div class="crop-foot"><button type="button" class="btn" id="cropReset">Reset corners</button><div class="crop-preview"><canvas id="cropPreview" width="80" height="120"></canvas><span>Preview</span></div></div>
 </div>
 
+<input type="file" accept="image/*" id="coverFile" hidden>
 <div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -769,7 +770,7 @@ footer a { color: var(--quiet); }
           <h2>${esc(b.title)}</h2>
           <div class="quiet">${esc(authorsText(b))}${b.year ? ` · ${esc(b.year)}` : ""}${b.page_count ? ` · ${esc(b.page_count)} pages` : ""}</div>
           ${b.ol_key ? `<button class="btn ghost" style="align-self:flex-start;padding-left:0" data-pickcover="${esc(b.id)}">Pick the cover that matches yours</button>` : ""}
-          <label class="btn ghost" style="align-self:flex-start;padding-left:0">Use a photo of my copy<input type="file" accept="image/*" data-coverfor="${esc(b.id)}" hidden></label>
+          <button class="btn ghost" style="align-self:flex-start;padding-left:0" data-photofor="${esc(b.id)}">Use a photo of my copy</button>
           ${isLib ? `<div class="row" style="gap:6px">${[["front","Cover out"],["spine","Spine out"],["flat","Lay flat"]].map(([k,l]) => `<button class="chip" data-turn="${esc(b.id)}:${k}" aria-pressed="${(b.orientation||"front") === k}">${l}</button>`).join("")}</div>` : ""}
         </div>
       </div>
@@ -1155,7 +1156,7 @@ footer a { color: var(--quiet); }
   document.addEventListener("click", (e) => {
     if (suppressClick) { e.preventDefault(); e.stopPropagation(); return; }
     if (!e.target.closest(".bubble") && !e.target.closest("[data-open]")) hideBubble();
-    const t = e.target.closest("[data-pickcover],[data-closepicker],[data-setcover],[data-turn],[data-open],[data-finish],[data-start],[data-gotit],[data-star],[data-wishfilter],[data-addnew],[data-addwish],[data-closedetail],[data-rate],[data-addquote],[data-delquote],[data-askdelete],[data-confirmdelete],[data-canceldelete],[data-dupok],[data-dupopen],[data-close],[data-ol],[data-unpick]");
+    const t = e.target.closest("[data-photofor],[data-pickcover],[data-closepicker],[data-setcover],[data-turn],[data-open],[data-finish],[data-start],[data-gotit],[data-star],[data-wishfilter],[data-addnew],[data-addwish],[data-closedetail],[data-rate],[data-addquote],[data-delquote],[data-askdelete],[data-confirmdelete],[data-canceldelete],[data-dupok],[data-dupopen],[data-close],[data-ol],[data-unpick]");
     if (!t) return;
     const d = t.dataset;
     if (d.ol !== undefined) pickResult(+d.ol);
@@ -1180,6 +1181,7 @@ footer a { color: var(--quiet); }
     else if (d.dupopen) { closeAdd(); openDetail(d.dupopen); }
     else if ("close" in d) closeAdd();
     else if (d.pickcover) showCoverPicker(d.pickcover);
+    else if (d.photofor) { const inp = $("coverFile"); inp.dataset.bookId = d.photofor; inp.click(); }
     else if ("closepicker" in d) { $("coverPicker").hidden = true; }
     else if (d.setcover) {
       const b = books.find(x => x.id === detailId); if (!b) return;
@@ -1204,8 +1206,10 @@ footer a { color: var(--quiet); }
       if (name === "status") { patch.shelf_pos = null; if (v === "reading" && !b.started_on) patch.started_on = today(); if (v === "read" && !b.finished_on) patch.finished_on = today(); }
       el.blur(); updateBook(detailId, patch);
     }
-    if (el.dataset?.coverfor && el.files?.[0]) {
-      const id = el.dataset.coverfor; el.blur(); const file = await openCropper(el.files[0]); el.value = "";
+    if (el.id === "coverFile" && el.files?.[0]) {
+      const id = el.dataset.bookId; const picked = el.files[0]; el.value = "";
+      if (!id) return;
+      const file = await openCropper(picked);
       if (!file) return;
       try { toast("Uploading cover…"); const url = await uploadCover(file); await updateBook(id, { cover_url: url }); render(); toast("Cover updated"); } catch (err) { toast("That photo didn't upload. Try again."); }
     }
