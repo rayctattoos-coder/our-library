@@ -186,6 +186,7 @@ nav.tabs svg { width: 22px; height: 22px; }
 .crop-foot { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); color: #ddd; gap: 12px; }
 .crop-preview { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .crop-preview canvas { width: 40px; height: 60px; border-radius: 2px; background: #333; }
+.vh-file { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; opacity: 0; }
 .cover-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 14px; }
 .cover-opt { background: none; border: none; padding: 0; display: flex; flex-direction: column; gap: 6px; text-align: left; font-size: 11px; color: var(--quiet); line-height: 1.3; }
 .cover-opt:focus-visible .cover, .cover-opt:hover .cover { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -364,7 +365,7 @@ footer a { color: var(--quiet); }
   <div class="crop-foot"><button type="button" class="btn" id="cropReset">Reset corners</button><div class="crop-preview"><canvas id="cropPreview" width="80" height="120"></canvas><span>Preview</span></div></div>
 </div>
 
-<input type="file" accept="image/*" id="coverFile" hidden>
+<input type="file" accept="image/*" id="coverFile" class="vh-file" tabindex="-1" aria-hidden="true">
 <div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -780,7 +781,7 @@ footer a { color: var(--quiet); }
           <h2>${esc(b.title)}</h2>
           <div class="quiet">${esc(authorsText(b))}${b.year ? ` · ${esc(b.year)}` : ""}${b.page_count ? ` · ${esc(b.page_count)} pages` : ""}</div>
           ${b.ol_key ? `<button class="btn ghost" style="align-self:flex-start;padding-left:0" data-pickcover="${esc(b.id)}">Pick the cover that matches yours</button>` : ""}
-          <button class="btn ghost" style="align-self:flex-start;padding-left:0" data-photofor="${esc(b.id)}">Use a photo of my copy</button>
+          <label for="coverFile" class="btn ghost" role="button" style="align-self:flex-start;padding-left:0;cursor:pointer" data-photofor="${esc(b.id)}">Use a photo of my copy</label>
           ${isLib ? `<div class="row" style="gap:6px">${[["front","Cover out"],["spine","Spine out"],["flat","Lay flat"]].map(([k,l]) => `<button class="chip" data-turn="${esc(b.id)}:${k}" aria-pressed="${(b.orientation||"front") === k}">${l}</button>`).join("")}</div>` : ""}
         </div>
       </div>
@@ -1191,7 +1192,7 @@ footer a { color: var(--quiet); }
     else if (d.dupopen) { closeAdd(); openDetail(d.dupopen); }
     else if ("close" in d) closeAdd();
     else if (d.pickcover) showCoverPicker(d.pickcover);
-    else if (d.photofor) { const inp = $("coverFile"); inp.dataset.bookId = d.photofor; inp.click(); }
+    else if (d.photofor) { $("coverFile").dataset.bookId = d.photofor; /* the <label for> opens the picker natively */ }
     else if ("closepicker" in d) { $("coverPicker").hidden = true; }
     else if (d.setcover) {
       const b = books.find(x => x.id === detailId); if (!b) return;
@@ -1221,7 +1222,7 @@ footer a { color: var(--quiet); }
       el.blur(); updateBook(detailId, patch);
     }
     if (el.id === "coverFile" && el.files?.[0]) {
-      const id = el.dataset.bookId; const picked = el.files[0]; el.value = "";
+      const id = el.dataset.bookId || detailId; const picked = el.files[0]; el.value = "";
       if (!id) return;
       const file = await openCropper(picked);
       if (!file) return;
