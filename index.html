@@ -169,6 +169,10 @@ nav.tabs svg { width: 22px; height: 22px; }
 .toast { position: fixed; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-size: 14px; z-index: 60; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 90vw; text-align: center; }
 .toast.show { opacity: 1; }
 .login { max-width: 420px; margin: 12vh auto 0; padding: 0 20px; display: flex; flex-direction: column; gap: 18px; text-align: center; }
+.or { display: flex; align-items: center; gap: 12px; margin: 14px 0; color: var(--quiet); font-size: 13px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.login form { gap: 6px; }
+.login form label { font-size: 14px; }
 .login .shelf-art { height: 64px; display: flex; justify-content: center; align-items: flex-end; gap: 4px; }
 .login .shelf-art i { display: block; width: 14px; border-radius: 2px; }
 footer { text-align: center; padding: 8px 16px 24px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -190,9 +194,10 @@ footer a { color: var(--quiet); }
     <label for="loginPass">Password</label>
     <input id="loginPass" type="password" autocomplete="current-password">
     <div style="height:12px"></div>
-    <button class="btn primary" id="loginBtn" type="submit">Sign in</button>
-    <div style="height:4px"></div>
-    <button class="btn ghost" id="linkBtn" type="button">First time, or forgot your password? Email me a sign-in link</button>
+    <button class="btn primary" id="loginBtn" type="submit" style="width:100%">Sign in</button>
+    <div class="or" aria-hidden="true"><span>or</span></div>
+    <button class="btn" id="linkBtn" type="button" style="width:100%;color:var(--ink)">Email me a sign-in link</button>
+    <p class="quiet" style="margin:6px 0 0;text-align:center;font-size:13px">Use the link the first time, or if you forgot your password.</p>
   </form>
   <div class="notice" id="loginMsg" role="status"></div>
 </section>
