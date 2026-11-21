@@ -128,11 +128,11 @@ body { padding-bottom: calc(210px + env(safe-area-inset-bottom)); }
 .spine .read-mark { top: -2px; right: auto; left: 50%; transform: translateX(-50%); width: 8px; height: 14px; }
 /* Flat stacks */
 .pile { display: flex; flex-direction: column-reverse; align-items: flex-start; flex-shrink: 0; }
-.flat { border: none; padding: 0 10px; border-radius: 2px; color: #FFF8EC; display: flex; align-items: center; gap: 8px; overflow: hidden; white-space: nowrap; touch-action: pan-y; position: relative;
+.flat { border: none; padding: 0 12px; border-radius: 2px; color: #FFF8EC; display: flex; align-items: center; gap: 8px; overflow: hidden; white-space: nowrap; touch-action: pan-y; position: relative;
   box-shadow: inset 0 2px 2px rgba(255,255,255,.18), inset 0 -3px 4px rgba(0,0,0,.35), 1px 2px 3px rgba(0,0,0,.4); }
-.flat .t { font-family: var(--display); font-weight: 600; font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+.flat .t { font-family: var(--display); font-weight: 600; font-size: 10.5px; line-height: 1; overflow: hidden; text-overflow: ellipsis; }
 .flat .a { font-size: 9px; opacity: .8; margin-left: auto; }
-.flat::before, .flat::after { content: ""; position: absolute; top: 3px; bottom: 3px; width: 2px; background: rgba(232,203,138,.7); }
+.flat::before, .flat::after { content: ""; position: absolute; top: 2px; bottom: 2px; width: 2px; background: rgba(232,203,138,.7); }
 .flat::before { left: 5px; } .flat::after { right: 5px; }
 /* Drag */
 .dragging-src { opacity: .3; }
@@ -402,6 +402,7 @@ footer a { color: var(--quiet); }
   const daysSince = (d) => d ? Math.max(1, Math.round((Date.parse(today()) - Date.parse(d)) / 864e5) + 1) : null;
   const normIsbn = (s) => String(s || "").replace(/[^0-9Xx]/g, "").toUpperCase();
   const isIsbn = (s) => { const n = normIsbn(s); return /^\d{13}$/.test(n) || /^\d{9}[\dX]$/.test(n); };
+  const flatThick = (b) => Math.round(Math.max(13, Math.min(26, (b.page_count || 320) / 16)));
   const thick = (b) => Math.round(Math.max(18, Math.min(40, (b.page_count || 320) / 11)));
   const nameOf = (b) => !b.added_by ? "" : b.added_by === me?.id ? "you" : (b.added_by_name || "the other one of us");
   function coverHtml(b, size) {
@@ -573,12 +574,12 @@ footer a { color: var(--quiet); }
       const units = [];
       for (const b of items) {
         const last = units[units.length - 1];
-        if (b.orientation === "flat" && last && last.pile && last.h + thick(b) <= bh) { last.books.push(b); last.h += thick(b); }
-        else if (b.orientation === "flat") units.push({ pile: true, books: [b], h: thick(b) });
+        if (b.orientation === "flat" && last && last.pile && last.h + flatThick(b) <= bh) { last.books.push(b); last.h += flatThick(b); }
+        else if (b.orientation === "flat") units.push({ pile: true, books: [b], h: flatThick(b) });
         else units.push({ pile: false, b });
       }
       const gap = 4;
-      const widthOf = (u) => u.pile ? Math.round(bh * 0.92) + 12 : u.b.orientation === "spine" ? thick(u.b) : bw + 8;
+      const widthOf = (u) => u.pile ? bh + 16 : u.b.orientation === "spine" ? thick(u.b) : bw + 8;
       const rows = []; let cur = [], used = 0;
       for (const u of units) { const wu = widthOf(u) + (cur.length ? gap : 0); if (cur.length && used + wu > inner) { rows.push(cur); cur = []; used = 0; } cur.push(u); used += widthOf(u) + (cur.length > 1 ? gap : 0); }
       if (cur.length) rows.push(cur);
@@ -594,10 +595,10 @@ footer a { color: var(--quiet); }
     return `<button class="book" data-open="${esc(b.id)}" data-drag="${esc(b.id)}" data-shelf="${shelf}" aria-label="${label}" title="${esc(b.title)}">${coverHtml(b, "S")}${mark}${shelf === "reading" && b.page_count ? `<span class="book-progress" aria-hidden="true"><i style="width:${pct(b)}%"></i></span>` : ""}</button>`;
   }
   function pileHtml(list, bh, shelf) {
-    const wide = Math.round(bh * 0.92);
+    const wide = bh;
     return `<div class="pile" data-pile="${esc(list[list.length - 1].id)}" data-shelf="${shelf}">${list.map((b, i) => {
-      const w = wide - (hash(b.id) % 3) * 6; // slight size variety
-      return `<button class="flat" data-open="${esc(b.id)}" data-drag="${esc(b.id)}" data-shelf="${shelf}" aria-label="${esc(b.title)} by ${esc(authorsText(b))}, lying flat" style="height:${thick(b)}px;width:${w}px;background:${colorOf(b)};margin-left:${(hash(b.id) % 5) - 2}px"><span class="t">${esc(b.title)}</span><span class="a">${esc(firstAuthor(b).split(" ").slice(-1)[0] || "")}</span></button>`;
+      const w = wide - (hash(b.id) % 3) * 5; // slight size variety
+      return `<button class="flat" data-open="${esc(b.id)}" data-drag="${esc(b.id)}" data-shelf="${shelf}" aria-label="${esc(b.title)} by ${esc(authorsText(b))}, lying flat" style="height:${flatThick(b)}px;width:${w}px;background:${colorOf(b)};margin-left:${(hash(b.id) % 5) - 2}px"><span class="t">${esc(b.title)}</span></button>`;
     }).join("")}</div>`;
   }
 
