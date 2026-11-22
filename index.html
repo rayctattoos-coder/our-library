@@ -85,18 +85,19 @@ nav.tabs svg { width: 22px; height: 22px; }
 .cover .gen span { font-size: 10px; opacity: .85; line-height: 1.3; }
 
 /* Bookcase */
-.bookcase { --bw: 70px; --bh: 112px; position: relative; border-radius: 10px; padding: 18px 10px 0; overflow: hidden; user-select: none; -webkit-user-select: none;
+.bookcase { --bw: 70px; --bh: 112px; position: relative; border-radius: 10px; padding: 18px 6px 0; overflow: hidden; user-select: none; -webkit-user-select: none;
   background: repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 1px, transparent 1px 7px, rgba(255,255,255,.03) 7px 8px, transparent 8px 19px), linear-gradient(180deg, #4A2E1C, #3B2416);
   box-shadow: inset 0 0 0 6px #5C3A22, inset 0 0 24px rgba(0,0,0,.45), var(--shadow); }
-@media (min-width: 500px) { .bookcase { --bw: 88px; --bh: 141px; } }
+/* --bw/--bh are set from the shelf width so 5 cover-out books always fit a row */
 .bookcase .book .cover { aspect-ratio: auto; height: var(--bh); }
 .plaque-row { display: flex; justify-content: center; padding: 2px 0 12px; }
 .plaque { font-family: var(--display); font-size: 13px; font-weight: 600; color: #3B2416; padding: 3px 14px; border-radius: 3px; background: linear-gradient(180deg, #E8CB8A, #C9A45C 55%, #A9843F); box-shadow: 0 1px 2px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.5); }
 .plaque span { opacity: .7; font-weight: 500; }
-.shelf-row { display: flex; align-items: flex-end; padding: 0 6px; min-height: var(--bh); position: relative; }
-.shelf-row { gap: 4px; }
-.shelf-row > .book { margin: 0 4px; }
+.shelf-row { display: flex; align-items: flex-end; padding: 0 4px; min-height: var(--bh); position: relative; }
+.shelf-row { gap: 3px; }
+.shelf-row > .book { margin: 0 2px; }
 .shelf-row > .pile { margin: 0 6px; }
+.flat { padding: 0 calc(var(--bw) * 0.17) !important; }
 .bubble { position: fixed; z-index: 40; background: var(--surface); color: var(--ink); border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.3); padding: 6px; display: flex; gap: 2px; transform: translate(-50%, calc(-100% - 10px)); }
 .bubble::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px; background: var(--surface); transform: translateX(-50%) rotate(45deg); }
 .bubble button { border: none; background: none; border-radius: 10px; padding: 6px 8px; min-width: 58px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; color: var(--quiet); position: relative; z-index: 1; }
@@ -105,7 +106,7 @@ nav.tabs svg { width: 22px; height: 22px; }
 .bubble button.open-btn { color: var(--accent); font-weight: 600; }
 .shelf-empty { justify-content: center; align-items: center; min-height: 72px; }
 .shelf-empty span { color: #E9D8C4; font-size: 14px; text-align: center; opacity: .85; padding: 0 12px; }
-.plank { height: 18px; margin: 0 -10px 22px; position: relative;
+.plank { height: 18px; margin: 0 -6px 22px; position: relative;
   background: repeating-linear-gradient(92deg, rgba(255,255,255,.05) 0 2px, transparent 2px 11px, rgba(0,0,0,.05) 11px 12px, transparent 12px 23px), linear-gradient(180deg, #C08A58 0, #A5703F 35%, #7E5130 100%);
   box-shadow: 0 8px 10px -2px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.25); }
 .plank::after { content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 6px; background: linear-gradient(180deg, #5E3B22, #4A2E1C); }
@@ -121,14 +122,14 @@ nav.tabs svg { width: 22px; height: 22px; }
   box-shadow: inset 2px 0 2px rgba(255,255,255,.18), inset -3px 0 4px rgba(0,0,0,.35), 2px 2px 4px rgba(0,0,0,.4); }
 .spine::before, .spine::after { content: ""; position: absolute; left: 3px; right: 3px; height: 2px; background: rgba(232,203,138,.75); }
 .spine::before { top: 6px; } .spine::after { bottom: 6px; }
-.spine .t { writing-mode: vertical-rl; font-family: var(--display); font-weight: 600; font-size: 11.5px; line-height: 1.1; max-height: 74%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.spine .a { writing-mode: vertical-rl; font-size: 9px; opacity: .8; white-space: nowrap; overflow: hidden; max-height: 22%; }
+.spine .t { writing-mode: vertical-rl; font-family: var(--display); font-weight: 600; font-size: calc(var(--bw) * 0.16); line-height: 1.1; max-height: 74%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spine .a { writing-mode: vertical-rl; font-size: calc(var(--bw) * 0.13); opacity: .8; white-space: nowrap; overflow: hidden; max-height: 22%; }
 .spine .read-mark { top: -2px; right: auto; left: 50%; transform: translateX(-50%); width: 8px; height: 14px; }
 /* Flat stacks */
 .pile { display: flex; flex-direction: column-reverse; align-items: flex-start; flex-shrink: 0; }
 .flat { border: none; padding: 0 12px; border-radius: 2px; color: #FFF8EC; display: flex; align-items: center; gap: 8px; overflow: hidden; white-space: nowrap; touch-action: pan-y; position: relative;
   box-shadow: inset 0 2px 2px rgba(255,255,255,.18), inset 0 -3px 4px rgba(0,0,0,.35), 1px 2px 3px rgba(0,0,0,.4); }
-.flat .t { font-family: var(--display); font-weight: 600; font-size: 10.5px; line-height: 1; overflow: hidden; text-overflow: ellipsis; }
+.flat .t { font-family: var(--display); font-weight: 600; font-size: calc(var(--bw) * 0.15); line-height: 1; overflow: hidden; text-overflow: ellipsis; }
 .flat .a { font-size: 9px; opacity: .8; margin-left: auto; }
 .flat::before, .flat::after { content: ""; position: absolute; top: 2px; bottom: 2px; width: 2px; background: rgba(232,203,138,.7); }
 .flat::before { left: 5px; } .flat::after { right: 5px; }
@@ -203,6 +204,9 @@ nav.tabs svg { width: 22px; height: 22px; }
 .tbook .ta { font-size: 12px; color: var(--quiet); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 .rank { position: absolute; z-index: 3; top: 6px; left: 6px; background: rgba(30,22,18,.82); color: #fff; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 1px 8px; }
 .owned { position: absolute; z-index: 3; top: 6px; right: 6px; background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
+.bookcase .cover .gen { padding: 10% 9%; }
+.bookcase .cover .gen b { font-size: calc(var(--bw) * 0.17); }
+.bookcase .cover .gen span { font-size: calc(var(--bw) * 0.13); }
 .cover-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 14px; }
 .cover-opt { background: none; border: none; padding: 0; display: flex; flex-direction: column; gap: 6px; text-align: left; font-size: 11px; color: var(--quiet); line-height: 1.3; }
 .cover-opt:focus-visible .cover, .cover-opt:hover .cover { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -430,8 +434,9 @@ footer a { color: var(--quiet); }
   const daysSince = (d) => d ? Math.max(1, Math.round((Date.parse(today()) - Date.parse(d)) / 864e5) + 1) : null;
   const normIsbn = (s) => String(s || "").replace(/[^0-9Xx]/g, "").toUpperCase();
   const isIsbn = (s) => { const n = normIsbn(s); return /^\d{13}$/.test(n) || /^\d{9}[\dX]$/.test(n); };
-  const flatThick = (b) => Math.round(Math.max(13, Math.min(26, (b.page_count || 320) / 16)));
-  const thick = (b) => Math.round(Math.max(14, Math.min(32, (b.page_count || 320) / 14)));
+  let shelfScale = 1; // book size relative to the original 70px-wide cover
+  const flatThick = (b) => Math.round(Math.max(13, Math.min(26, (b.page_count || 320) / 16)) * shelfScale);
+  const thick = (b) => Math.round(Math.max(14, Math.min(32, (b.page_count || 320) / 14)) * shelfScale);
   const nameOf = (b) => !b.added_by ? "" : b.added_by === me?.id ? "you" : (b.added_by_name || "the other one of us");
   function coverSrc(url, size) {
     if (!url) return null;
@@ -608,8 +613,10 @@ footer a { color: var(--quiet); }
     el.className = "bookcase";
     el.dataset.arrange = canArrange ? "1" : "";
     const w = $("view-library").clientWidth || 360;
-    const bw = w >= 500 ? 88 : 70, bh = Math.round(bw * 1.6);
-    const inner = w - 20 - 12;
+    const gap = 3, inner = w - 12 - 8;           // bookcase side padding + row padding
+    const bw = Math.floor((inner - 4 * gap - 5 * 4) / 5), bh = Math.round(bw * 1.6);  // 5 covers, each with 2px margins
+    shelfScale = bw / 70;
+    el.style.setProperty("--bw", bw + "px"); el.style.setProperty("--bh", bh + "px");
     el.innerHTML = groups.map(([k, label, items]) => {
       const plaque = `<div class="plaque-row"><span class="plaque">${label} <span>${items.length}</span></span></div>`;
       if (!items.length) return plaque + `<div class="shelf-row shelf-empty" data-shelf="${k}"><span>Nothing open right now. Tap a book on the To read shelf to start it.</span></div><div class="plank"></div>`;
@@ -621,8 +628,7 @@ footer a { color: var(--quiet); }
         else if (b.orientation === "flat") units.push({ pile: true, books: [b], h: flatThick(b) });
         else units.push({ pile: false, b });
       }
-      const gap = 4;
-      const widthOf = (u) => u.pile ? bh + 16 : u.b.orientation === "spine" ? thick(u.b) : bw + 8;
+      const widthOf = (u) => u.pile ? bh + 12 : u.b.orientation === "spine" ? thick(u.b) : bw + 4;
       const rows = []; let cur = [], used = 0;
       for (const u of units) { const wu = widthOf(u) + (cur.length ? gap : 0); if (cur.length && used + wu > inner) { rows.push(cur); cur = []; used = 0; } cur.push(u); used += widthOf(u) + (cur.length > 1 ? gap : 0); }
       if (cur.length) rows.push(cur);
